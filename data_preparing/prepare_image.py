@@ -36,7 +36,7 @@ def calc_color_percentage(img_name, color: list, diff: list):
 def slice_images_in_directory(directory_name: str, result_folder_path: str, horizontal_param: int, vertical_param: int,
                               slicing_func, fix_name_func):
     files = os.listdir(directory_name)
-    files = filter(lambda x: x.__contains__('.jpg') or x.__contains__('.png'), files)
+    files = filter(lambda x: x.__contains__('.jpg') or x.__contains__('.png') or x.__contains__('jpeg'), files)
     print('start slicing')
     for file_name in files:
         print(file_name)
