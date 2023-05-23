@@ -17,12 +17,7 @@ from torch.optim import lr_scheduler
 from torch import nn, optim
 from typing import Tuple
 
-data_dir_fit = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\test_3\augmented\fit'
-data_dir_test = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\test_3\augmented\test'
-data_dir = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\test_3\base'
 
-img_width = 300
-img_height = 300
 batch_size = 8
 classes = 6
 epochs = [20, 15]
@@ -150,14 +145,17 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
     return model
 
 
-def load_data(is_augmented: bool) -> Tuple:
+def load_data(is_augmented: bool, data_dir_fit, data_dir_test, data_dir) -> Tuple:
     transform = transforms.Compose([transforms.ToTensor()])
-
+    test_ds = None
+    train_ds = None
     if is_augmented:
-        train_ds = datasets.ImageFolder(data_dir_fit, transform=transform)
-        print(len(train_ds))
-        test_ds = datasets.ImageFolder(data_dir_test, transform=transform)
-        print(len(test_ds))
+        if data_dir_fit is not None:
+            train_ds = datasets.ImageFolder(data_dir_fit, transform=transform)
+            print(len(train_ds))
+        if data_dir_test is not None:
+            test_ds = datasets.ImageFolder(data_dir_test, transform=transform)
+            print(len(test_ds))
     else:
         full_ds = datasets.ImageFolder(data_dir, transform=transform)
         print(len(full_ds))
@@ -240,6 +238,11 @@ def fit_and_eval(is_augmented: bool, writer: SummaryWriter, model, save_model_pa
     torch.save(model.state_dict(), save_model_params_path)
 
     eval_model(model, test_ds)
+
+
+def fit_and_eval_with_logs_and_aug(model, save_model_params_path, logs_dir, is_augmented):
+    writer = SummaryWriter(logs_dir)
+    fit_and_eval(is_augmented, writer, model, save_model_params_path)
 
 
 def fit_and_eval_primal(sub_dir, model, save_model_params_path):
