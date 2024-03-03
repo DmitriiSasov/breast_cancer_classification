@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import timm
 
-from models_training.v3.TrainModel import classes, fit_and_eval_augmented, load_data, eval_model, \
+from models_training.v3.models.inception_resnet.cancer.TrainModel import classes, load_data, eval_model, \
     fit_and_eval_with_logs_and_aug
 
 data_dir_fit = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\benign_insitu_invasive\augmented\fit'
@@ -12,11 +12,11 @@ data_dir = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\benign_
 
 
 def fit_and_eval_inception_resnet_invasive_benign_insitu():
-    save_model_params_path_aug = fr'saved_models\inception_resnet_v2_pytorch_byrn_ben_inv_ins_aug.h5'
+    save_model_params_path_aug = fr'../saved_models/inception_resnet_v2_pytorch_byrn_ben_inv_ins_aug.h5'
 
     model = timm.create_model('inception_resnet_v2', pretrained=True)
     model.classif = nn.Linear(model.classif.in_features, classes)
-    fit_and_eval_with_logs_and_aug(model, save_model_params_path_aug, fr'logs\invasive_benign_insitu', True)
+    fit_and_eval_with_logs_and_aug(model, save_model_params_path_aug, fr'../logs/invasive_benign_insitu', True)
 
 
 def eval_inception_resnet_invasive_benign_insitu():

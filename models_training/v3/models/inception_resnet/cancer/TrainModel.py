@@ -17,15 +17,17 @@ from torch.optim import lr_scheduler
 from torch import nn, optim
 from typing import Tuple
 
+from models_training.v3.data.augmentation.randstainna import RandStainNA
+from models_training.v3.data.loaders.my_dataset import MyDatasetLoaderWithScalars
 
-batch_size = 8
+batch_size = 128
 classes = 6
-epochs = [20, 15]
+epochs = [20, 30, 15]
 train = 0.7
 test = 0.15
 valid = 0.15
 learning_rate = [0.001, 0.00001]
-target_names = ['CR', 'DCIS', 'FA', 'FCD', 'Lob_CR', 'Papilloma']  #
+target_names = ['garbage', 'in_situ', 'invasive', 'invasive_insitu', 'invasive_without_surrounding_tissue', 'normal']  #
 loss = nn.CrossEntropyLoss()
 
 
@@ -63,15 +65,16 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
             running_corrects = 0
 
             # Iterate over data.
-            for inputs, labels in dataloaders[phase]:
+            for images, scalars, labels in dataloaders[phase]:  #
                 y_true.extend(labels.tolist())
-                inputs = inputs.to(device)
+                images = images.to(device)
+                scalars = scalars.to(device)
                 labels = labels.to(device)
 
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(inputs)
+                    outputs = model(images, scalars)  #
                     _, preds = torch.max(outputs, 1)
                     loss = criterion(outputs, labels)
 
@@ -84,7 +87,7 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
                         optimizer.step()
 
                 # statistics
-                running_loss += loss.item() * inputs.size(0)
+                running_loss += loss.item() * images.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
             if phase == 'train':
@@ -92,12 +95,12 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
-            report = classification_report(y_true, y_pred, output_dict=True)
-            metrics[phase]['Loss'] = epoch_loss
-            metrics[phase]['Accuracy'] = epoch_acc
-            metrics[phase]['Macro avg Precision'] = report['macro avg']['precision']
-            metrics[phase]['Macro avg Recall'] = report['macro avg']['recall']
-            metrics[phase]['Macro avg F1'] = report['macro avg']['f1-score']
+            report = classification_report(y_true, y_pred, output_dict=True, zero_division=0.0)
+            metrics[phase]['loss'] = epoch_loss
+            metrics[phase]['accuracy'] = epoch_acc
+            metrics[phase]['prec'] = report['macro avg']['precision']
+            metrics[phase]['recall'] = report['macro avg']['recall']
+            metrics[phase]['f1'] = report['macro avg']['f1-score']
 
             print('{} Loss: {:.4f} Acc: {:.4f} SkL Acc: {:.4f} SkL Prec: {:.4f} SkL Rec: {:.4f} SkL F1: {:.4f}'.format(
                 phase, epoch_loss, epoch_acc, report['accuracy'], report['macro avg']['precision'],
@@ -113,25 +116,25 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
                 best_model_wts = copy.deepcopy(model.state_dict())
                 writer.add_scalar('best f1', best_f1, epoch)
 
-        writer.add_scalars('Loss', {
-            f'{phases[0]} Loss': metrics[phases[0]]['Loss'],
-            f'{phases[1]} Loss': metrics[phases[1]]['Loss'],
+        writer.add_scalars('loss', {
+            f'{phases[0]} loss': metrics[phases[0]]['loss'],
+            f'{phases[1]} loss': metrics[phases[1]]['loss'],
         }, epoch)
-        writer.add_scalars('Accuracy', {
-            f'{phases[0]} Accuracy': metrics[phases[0]]['Accuracy'],
-            f'{phases[1]} Accuracy': metrics[phases[1]]['Accuracy'],
+        writer.add_scalars('accuracy', {
+            f'{phases[0]} accuracy': metrics[phases[0]]['accuracy'],
+            f'{phases[1]} accuracy': metrics[phases[1]]['accuracy'],
         }, epoch)
-        writer.add_scalars('Macro avg Precision', {
-            f'{phases[0]} Macro avg Precision': metrics[phases[0]]['Macro avg Precision'],
-            f'{phases[1]} Macro avg Precision': metrics[phases[1]]['Macro avg Precision'],
+        writer.add_scalars('prec', {
+            f'{phases[0]} prec': metrics[phases[0]]['prec'],
+            f'{phases[1]} prec': metrics[phases[1]]['prec'],
         }, epoch)
-        writer.add_scalars('Macro avg Recall', {
-            f'{phases[0]} Macro avg Recall': metrics[phases[0]]['Macro avg Recall'],
-            f'{phases[1]} Macro avg Recall': metrics[phases[1]]['Macro avg Recall'],
+        writer.add_scalars('recall', {
+            f'{phases[0]} recall': metrics[phases[0]]['recall'],
+            f'{phases[1]} recall': metrics[phases[1]]['recall'],
         }, epoch)
-        writer.add_scalars('Macro avg F1', {
-            f'{phases[0]} Macro avg F1': metrics[phases[0]]['Macro avg F1'],
-            f'{phases[1]} Macro avg F1': metrics[phases[1]]['Macro avg F1'],
+        writer.add_scalars('f1', {
+            f'{phases[0]} f1': metrics[phases[0]]['f1'],
+            f'{phases[1]} f1': metrics[phases[1]]['f1'],
         }, epoch)
         print()
 
@@ -145,19 +148,26 @@ def train_model(model, criterion, optimizer, scheduler, train_ds, device, writer
     return model
 
 
-def load_data(is_augmented: bool, data_dir_fit, data_dir_test, data_dir) -> Tuple:
-    transform = transforms.Compose([transforms.ToTensor()])
+def load_data(splitted: bool, data_dir_fit=None, data_dir_test=None, data_dir=None) -> Tuple:
+    transform = transforms.Compose([#transforms.RandomRotation(degrees=179), transforms.RandomCrop(size=280),
+                                    #transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5.)),
+                                    RandStainNA(yaml_file="../CRC_LAB_randomTrue_n0.yaml",
+                                                std_hyper=-0.3,
+                                                probability=1.0,
+                                                distribution="normal",
+                                                is_train=True, ),
+                                    transforms.ToTensor()])
     test_ds = None
     train_ds = None
-    if is_augmented:
+    if splitted:
         if data_dir_fit is not None:
-            train_ds = datasets.ImageFolder(data_dir_fit, transform=transform)
+            train_ds = MyDatasetLoaderWithScalars(os.path.join(data_dir_fit, "data.csv"), data_dir_fit, transform) # datasets.ImageFolder(data_dir_fit, transform=transform)
             print(len(train_ds))
         if data_dir_test is not None:
-            test_ds = datasets.ImageFolder(data_dir_test, transform=transform)
+            test_ds = MyDatasetLoaderWithScalars(os.path.join(data_dir_test, "data.csv"), data_dir_test, transform) # datasets.ImageFolder(data_dir_test, transform=transform)
             print(len(test_ds))
     else:
-        full_ds = datasets.ImageFolder(data_dir, transform=transform)
+        full_ds = MyDatasetLoaderWithScalars(os.path.join(data_dir, "data.csv"), data_dir, transform) # datasets.ImageFolder(data_dir, transform=transform)
         print(len(full_ds))
         train_ds, test_ds = random_split(full_ds,
                                          [int(round(len(full_ds) * (train + valid))),
@@ -167,7 +177,6 @@ def load_data(is_augmented: bool, data_dir_fit, data_dir_test, data_dir) -> Tupl
 
 
 def eval_model(model, test_ds):
-
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     test_dataloader = DataLoader(test_ds, batch_size=batch_size, shuffle=True)
@@ -176,10 +185,11 @@ def eval_model(model, test_ds):
 
     y_true = []
     y_pred = []
-    for inputs, labels in test_dataloader:
+    for inputs, scalars, labels in test_dataloader: #
         inputs = inputs.to(device)
+        scalars = scalars.to(device) #
         y_true.extend(labels.tolist())
-        res = model(inputs)
+        res = model(inputs, scalars) #
         _, preds = torch.max(res, 1)
         y_pred.extend(preds.tolist())
         del res
@@ -187,7 +197,7 @@ def eval_model(model, test_ds):
         del preds
         gc.collect()
 
-    print(classification_report(y_true, y_pred, digits=4))
+    print(classification_report(y_true, y_pred, digits=4, zero_division=0.0))
     print(confusion_matrix(y_true, y_pred))
 
     np_y_true = np.array(y_true)
@@ -227,11 +237,11 @@ def eval_model(model, test_ds):
 
 
 def fit_and_eval(is_augmented: bool, writer: SummaryWriter, model, save_model_params_path):
-    train_ds, test_ds = load_data(is_augmented)
+    train_ds, test_ds = load_data(is_augmented, data_dir=fr"F:\Dima\phd\test\for_ml\scalar_data_for_our_dataset") # F:\Dima\phd\test\for_ml\my_aug
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
     step_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=8, gamma=0.1)
     model = train_model(model, loss, optimizer, step_lr_scheduler, train_ds, device, writer, num_epochs=epochs[0])
     writer.close()

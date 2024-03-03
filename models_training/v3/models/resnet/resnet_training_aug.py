@@ -13,7 +13,7 @@ def eval_trained_resnet():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.load_state_dict(torch.load(fr'F:\Dima\Универ\Диссертация\Проект\эксперименты\models_training\v3\models\resnet\saved_models\resnet_152_pytorch_byrn_augmented_20_ep.h5'))
-    _, test_ds = load_data(is_augmented=True)
+    _, test_ds = load_data(True, None, fr'F:\Dima\dissertation\Data\other_datasets\for_test\breakhis\400x\test', None)
     eval_model(model, test_ds)
 
 

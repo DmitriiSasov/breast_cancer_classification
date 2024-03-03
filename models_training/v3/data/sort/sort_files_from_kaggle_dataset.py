@@ -4,7 +4,7 @@ import shutil
 if __name__ == '__main__':
     dst_dir = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\kaggle'
     base_dir = fr'F:\Dima\dissertation\Data\other_datasets\kaggle_breast_cancer'
-    classes = ['0', '1']
+    classes = ['0', 'resnet_152']
 
     for _class in classes:
         if not os.path.exists(os.path.join(dst_dir, _class)):

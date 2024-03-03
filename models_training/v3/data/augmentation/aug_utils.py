@@ -3,6 +3,7 @@ from PIL import Image, ImageEnhance
 import albumentations as A
 import cv2
 from albumentations import RandomBrightnessContrast
+import pandas as pd
 
 
 def horizontal_flip(image_full_name):
@@ -16,7 +17,7 @@ def vertical_flip(image_full_name):
 # 0.2 - делает более фиолетовым, 0.0 - делает более розовым
 def change_brightness_contrast(image_full_name):
     # transform = A.Compose([
-    #     A.RandomBrightnessContrast(brightness_limit=0, contrast_limit=2, p=1),
+    #     A.RandomBrightnessContrast(brightness_limit=0, contrast_limit=2, p=resnet_152),
     # ])
     #
     # # Read an image with OpenCV and convert it to the RGB colorspace
@@ -26,22 +27,23 @@ def change_brightness_contrast(image_full_name):
     # # Augment an image
     # transformed = transform(image=image)
     # return transformed["image"]
+
     img = Image.open(image_full_name)
     enchancer = ImageEnhance.Contrast(img)
 
-    # 1.4
-    factor = 1
+    # resnet_152.4
+    factor = 0.8
     img = enchancer.enhance(factor)
 
     enchancer = ImageEnhance.Color(img)
 
-    factor = 0.7
+    factor = 0.8
     img = enchancer.enhance(factor)
 
     enchancer = ImageEnhance.Brightness(img)
 
-    # 1.2
-    factor = 1.1
+    # resnet_152.2
+    factor = 0.8
     img = enchancer.enhance(factor)
     return img
 
@@ -56,56 +58,132 @@ def resize(image_full_name, height, width):
     return im.resize((height, width))
 
 
-def vertical_flip_images_from_dir(directory):
-    for file in os.listdir(directory):
-        new_file_prefix = '_ver_flip_'
-        vertical_flip(os.path.join(directory, file)).save(os.path.join(directory, new_file_prefix + file))
+def vertical_flip_images_from_dir(src_dir, dst_dir, table_path=None):
+    table_with_data = None
+    if table_path is not None:
+        table_with_data = pd.read_csv(table_path, delimiter=";", dtype={'index': 'int', 'filename': 'str',
+                                                                        'epithelium': 'int', 'stroma': 'int',
+                                                                        'adipose_tissue': 'int',
+                                                                        'background': 'int', 'leukocyte': 'int',
+                                                                        'norm': 'int', 'in situ': 'int',
+                                                                        'invasive': 'int'})
+    for file in os.listdir(src_dir):
+        new_file_prefix = 'ver_flip_'
+        vertical_flip(os.path.join(src_dir, file)).save(os.path.join(dst_dir, new_file_prefix + file))
+        if table_with_data is not None:
+            row = table_with_data.loc[table_with_data['filename'] == file]
+            row['filename'] = new_file_prefix + file
+            row['index'] = len(table_with_data.index)
+            table_with_data = pd.concat([table_with_data, row], ignore_index=True)
+    if table_path is not None and table_with_data is not None:
+        table_with_data.to_csv(table_path, sep=";", index=False)
 
 
-def horizontal_flip_images_from_dir(directory):
-    for file in os.listdir(directory):
-        new_file_prefix = '_hor_flip_'
-        horizontal_flip(os.path.join(directory, file)).save(os.path.join(directory, new_file_prefix + file))
+def horizontal_flip_images_from_dir(src_dir, dst_dir, table_path=None):
+    table_with_data = None
+    if table_path is not None:
+        table_with_data = pd.read_csv(table_path, delimiter=";", dtype={'index': 'int', 'filename': 'str',
+                                                                        'epithelium': 'int', 'stroma': 'int',
+                                                                        'adipose_tissue': 'int',
+                                                                        'background': 'int', 'leukocyte': 'int',
+                                                                        'norm': 'int', 'in situ': 'int',
+                                                                        'invasive': 'int'})
+    for file in os.listdir(src_dir):
+        new_file_prefix = 'hor_flip_'
+        horizontal_flip(os.path.join(src_dir, file)).save(os.path.join(dst_dir, new_file_prefix + file))
+        if table_with_data is not None:
+            row = table_with_data.loc[table_with_data['filename'] == file]
+            row['filename'] = new_file_prefix + file
+            row['index'] = len(table_with_data.index)
+            table_with_data = pd.concat([table_with_data, row], ignore_index=True)
+    if table_path is not None and table_with_data is not None:
+        table_with_data.to_csv(table_path, sep=";", index=False)
 
 
-def change_brightness_contrast_images_from_dir(directory):
-    for file in os.listdir(directory):
-        new_file_prefix = '_bri_con_'
+def change_brightness_contrast_images_from_dir(src_dir, dst_dir):
+    for file in os.listdir(src_dir):
+        new_file_prefix = 'bri_con_'
         # cv2.imwrite(os.path.join(directory, new_file_prefix + file),
         #             change_brightness_contrast(os.path.join(directory, file)))
-        change_brightness_contrast(os.path.join(directory, file)) \
-            .save(os.path.join(directory, new_file_prefix + file))
-        print(os.path.join(directory, new_file_prefix + file))
+        change_brightness_contrast(os.path.join(src_dir, file)) \
+            .save(os.path.join(dst_dir, new_file_prefix + file))
+        print(os.path.join(dst_dir, new_file_prefix + file))
 
 
-def rotate_images_from_dir(directory):
-    for file in os.listdir(directory):
-        new_file_prefix1 = '_rot_90'
-        new_file_prefix2 = '_rot_180'
-        new_file_prefix3 = '_rot_270'
-        rotate_by(os.path.join(directory, file), 90).save(os.path.join(directory, new_file_prefix1 + file))
-        rotate_by(os.path.join(directory, file), 180).save(os.path.join(directory, new_file_prefix2 + file))
-        # rotate_by(os.path.join(directory, file), 270).save(os.path.join(directory, new_file_prefix3 + file))
+def rotate_images_from_dir(src_dir, dst_dir, table_path=None):
+    table_with_data = None
+    if table_path is not None:
+        table_with_data = pd.read_csv(table_path, delimiter=";", dtype={'index': 'int', 'filename': 'str',
+                                                                        'epithelium': 'int', 'stroma': 'int',
+                                                                        'adipose_tissue': 'int',
+                                                                        'background': 'int', 'leukocyte': 'int',
+                                                                        'norm': 'int', 'in situ': 'int',
+                                                                        'invasive': 'int'})
+    for file in os.listdir(src_dir):
+        prefixes = ['rot_90_', 'rot_180_']  # , 'rot_270_'
+        degrees = [90, 180]  # , 270
+        for new_file_prefix, degree in zip(prefixes, degrees):
+            rotate_by(os.path.join(src_dir, file), degree).save(os.path.join(dst_dir, new_file_prefix + file))
+            if table_with_data is not None:
+                row = table_with_data.loc[table_with_data['filename'] == file]
+                row['filename'] = new_file_prefix + file
+                row['index'] = len(table_with_data.index)
+                table_with_data = pd.concat([table_with_data, row], ignore_index=True)
+    if table_path is not None and table_with_data is not None:
+        table_with_data.to_csv(table_path, sep=";", index=False)
 
 
-def resize_images_from_dir(directory):
-    for file in os.listdir(directory):
-        resize(os.path.join(directory, file), 200, 200).save(os.path.join(directory, file))
+def resize_images_from_dir_with_changing_format(src_dir, dst_dir):
+    for file in os.listdir(src_dir):
+        res = resize(os.path.join(src_dir, file), 300, 300)
+        res = res.convert("RGB")
+        output_filename = file[:-3] + "jpeg"
+        res.save(os.path.join(dst_dir, output_filename), "JPEG", quality=100)
+
+
+def resize_images_from_dir(src_dir, dst_dir):
+    for file in os.listdir(src_dir):
+        resize(os.path.join(src_dir, file), 300, 300).save(os.path.join(dst_dir, file))
 
 
 def resize_images():
-    folders = ['valid', 'test', 'fit']
-    cancers = ['CR', 'DCIS', 'FA', 'FCD', 'Lob_CR', 'Medul_CR', 'Micpap_CR', 'Muc_CR', 'Pap_CR', 'Papilloma']
+    folders = ['Benign', 'InSitu', 'Invasive', ]
     for folder in folders:
-        for cancer in cancers:
-            resize_images_from_dir(
-                fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\200x200\{folder}\{cancer}')
+        resize_images_from_dir(
+            fr'F:\Dima\dissertation\Data\other_datasets\for_test\byrnasyan_500x500_to_300x300\{folder}',
+            fr'F:\Dima\dissertation\Data\other_datasets\for_test\byrnasyan_500x500_to_300x300\{folder}')
+
+
+def filter_table(table_path, files_dir):
+    table = pd.read_csv(table_path, delimiter=";", dtype={'index': 'int', 'filename': 'str',
+                                                          'epithelium': 'int', 'stroma': 'int',
+                                                          'adipose_tissue': 'int',
+                                                          'background': 'int', 'leukocyte': 'int',
+                                                          'norm': 'int', 'in situ': 'int',
+                                                          'invasive': 'int'})
+    filenames = os.listdir(files_dir)
+    filenames.remove('data.csv')
+    indexes = []
+    for index, row in enumerate(table.values):
+        if row[1] not in filenames:
+            indexes.append(index)
+    table = table.drop(labels=indexes, axis=0)
+    for index, row in enumerate(table.values):
+        table.loc[row[0], 'index'] = index
+    table.to_csv(table_path, sep=";", index=False)
 
 
 if __name__ == '__main__':
-    dir = fr'F:\Dima\dissertation\Data\other_datasets\for_fit\burnasyan\test_2\valid\Micpap_CR'
-    # vertical_flip_images_from_dir(dir)
-    # horizontal_flip_images_from_dir(dir)
-    rotate_images_from_dir(dir)
+    source_dir = fr'F:\Dima\phd\test\for_ml\scalar_data_for_our_dataset_augmented'
+    destination_dir = fr'F:\Dima\phd\test\for_ml\scalar_data_for_our_dataset_augmented'
+    table = r'F:\Dima\phd\test\for_ml\scalar_data_for_our_dataset_augmented\data.csv'
+    # vertical_flip_images_from_dir(source_dir, source_dir, table)
+    # horizontal_flip_images_from_dir(source_dir, source_dir, table)
+    # rotate_images_from_dir(source_dir, source_dir, table)
     # change_brightness_contrast_images_from_dir(dir)
-    # resize_images()
+    # change_brightness_contrast_images_from_dir(src_dir, dst_dir)
+    # resize_images_from_dir(src_dir, dst_dir)
+
+    # resize_images_from_dir(r'F:\Dima\dissertation\Data\test', r'F:\Dima\dissertation\Data\test')
+
+    filter_table(os.path.join(source_dir, 'data.csv'), source_dir)

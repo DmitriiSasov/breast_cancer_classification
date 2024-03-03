@@ -1,7 +1,7 @@
 from data_preparing.prepare_image import slice_images_in_directory, fix_image_name_for_1, write_images_statistic, \
     slice_image_fixed_size, fix_image_name_for_2_3, fix_image_name_for_4_5_6
 
-if __name__ == '__main__':
+def default_start():
     height = 300
     width = 300
     """r'F:\Dima\dissertation\Data\photos_bc\1', r'F:\Dima\dissertation\Data\photos_bc\2',
@@ -22,3 +22,9 @@ if __name__ == '__main__':
         diff = [75, 163, 255]
         file_name = 'transformed_data'
         write_images_statistic(result_images_directories[i], color, diff, file_name)
+
+
+if __name__ == '__main__':
+    slice_images_in_directory(r'F:\Dima\dissertation\Data\other_datasets\some_paper\all_data\output_full_images\Invasive',
+                              r'F:\Dima\dissertation\Data\other_datasets\some_paper\all_data\output_sliced\Invasive',
+                              500, 500, slice_image_fixed_size, lambda x: x)

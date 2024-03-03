@@ -34,7 +34,9 @@ class TestStringMethods(unittest.TestCase):
         print(os.path.join('../photos', 'white_test.jpg'))
 
     def test_slicing_in_dir(self):
-        slice_images_in_directory(r'../photos', r'../tests_results', 2, 2, slice_image_into_equal_parts, lambda x: x)
+        slice_images_in_directory(r'F:\Dima\dissertation\Data\other_datasets\for_test\breakhis\400x\lobular_carcinoma',
+                                  r'F:\Dima\dissertation\Data\other_datasets\for_test\breakhis\400x\tmp', 2, 1,
+                                  slice_image_into_equal_parts, lambda x: x)
 
     def test_slicing_in_dir_fixed_size(self):
         slice_images_in_directory(r'../photos', r'../tests_results', 300, 300, slice_image_fixed_size, lambda x: x)
